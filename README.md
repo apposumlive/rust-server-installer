@@ -1,26 +1,100 @@
-# Rust Dedicated Server — One-Click Installer
+# Rust Dedicated Server — Установка в 1 клик
 
-**The fastest and most reliable way to install a Rust Dedicated Server on Ubuntu**
+**Самый быстрый и надежный способ установить сервер Rust на Ubuntu 22.04 / 24.04**
 
-One single command → answer 5 simple questions → fully working server with systemd, rcon-cli, auto-restart, logs, firewall and everything you need.
+Всего одна команда → ответы на 5 простых вопросов → полностью готовый рабочий сервер с systemd, rcon-cli, автоперезапуском при падении, логами, настроенным файрволом и всем необходимым.
 
 ![Ubuntu](https://img.shields.io/badge/Ubuntu-22.04%20%2F%2024.04-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
 ![Rust](https://img.shields.io/badge/Rust-258550-000000?style=for-the-badge&logo=rust&logoColor=white)
 ![SteamCMD](https://img.shields.io/badge/SteamCMD-171A21-000000?style=for-the-badge)
 
-## ✨ Features
+## ✨ Особенности
 
-- True **one-command installation**
-- Interactive setup (server name, RCON password, map seed, world size, max players)
-- Strong random RCON password generated automatically
-- Professional **rcon-cli** installed automatically
-- systemd service with auto-restart on crash
-- Clean folder structure + central `config.env` file
-- Automatic opening of all required ports via UFW
-- Rust+ App support included
-- Ready for daily scheduled restarts
+- Настоящая **установка одной командой**
+- Интерактивная настройка (название сервера, RCON пароль, seed карты, размер мира, лимит игроков)
+- Автоматическая генерация надежного пароля RCON (если оставить поле пустым)
+- Профессиональная утилита **rcon-cli** устанавливается автоматически
+- Служба `systemd` с автоперезапуском сервера при крашах
+- Чистая структура папок и единый файл настроек `config.env`
+- Автоматическое открытие всех нужных портов через UFW
+- Поддержка приложения Rust+
+- Готовый скрипт для ежедневных автоматических перезагрузок
 
-## 🚀 Installation (one line)
+---
+
+## 🚀 Установка (выполняется одной строкой)
+
+Скопируйте и вставьте эту команду в терминал вашего сервера:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/apposumlive/rust-server-installer/main/install.sh -o install.sh && bash install.sh && rm install.sh
+```
+
+## ⏳ В процессе установки
+
+* Установка занимает **от 2 до 5 минут** (в зависимости от скорости сети сервера), пока SteamCMD скачивает файлы сервера Rust.
+* **Не нажимайте `Ctrl+C`**. Позвольте скрипту спокойно завершить работу.
+* Об успешном завершении вам сообщит большой зеленый баннер **«УСТАНОВКА ЗАВЕРШЕНА УСПЕШНО!»** в конце лога.
+
+---
+
+## 🏁 Первые шаги после установки
+
+Сервер автоматически добавляется как служба `systemd`. Это означает, что он работает в фоновом режиме и будет **автоматически запускаться при перезагрузке вашего VPS**.
+
+Сразу после появления зеленого баннера об успехе, выполните эти команды для проверки:
+
+1. **Проверить статус работы сервера:**
+   ```bash
+   systemctl status rustserver
+   ```
+   *(Статус должен быть "active (running)")*
+
+2. **Смотреть логи запуска в реальном времени:**
+   ```bash
+   tail -f ~/rustserver/logs/latest.log
+   ```
+
+---
+
+## 🛠️ Управление сервером (Инструкция)
+
+Всё управление сведено к удобным скриптам. Вот основные команды, которые вам понадобятся для ежедневного администрирования:
+
+| Действие | Команда |
+| :--- | :--- |
+| **Перезапустить сервер** | `sudo systemctl restart rustserver` |
+| **Остановить сервер** | `sudo systemctl stop rustserver` |
+| **Обновить сервер** | `~/rustserver/scripts/update.sh` |
+| **Полный вайп (Новый Seed)**| `~/rustserver/scripts/wipe.sh` |
+| **Отправить сообщение в чат**| `~/rustserver/scripts/rcon.sh say "Всем привет!"` |
+
+---
+
+## ⚙️ Настройки конфигурации
+
+Все базовые настройки вашего сервера хранятся в одном простом файле. Если вы захотите позже изменить название сервера, лимит игроков, seed или RCON пароль:
+
+1. Откройте файл конфигурации:
+   ```bash
+   nano ~/rustserver/config.env
+   ```
+2. Внесите нужные изменения, сохраните файл (`Ctrl+O`, `Enter`, `Ctrl+X`) и примените их перезапуском:
+   ```bash
+   sudo systemctl restart rustserver
+   ```
+
+---
+
+## ⏰ Автоперезагрузка по расписанию (Cron)
+
+В установщик встроен скрипт, который отправляет игрокам в чат красное предупреждение за 10 минут до рестарта. Чтобы настроить автоматическую ежедневную перезагрузку (например, каждое утро в 09:00), добавьте задачу в crontab.
+
+1. Откройте планировщик:
+   ```bash
+   crontab -e
+   ```
+2. Добавьте эту строку в самый низ файла:
+   ```cron
+   50 8 * * * /home/$(whoami)/rustserver/scripts/scheduled_restart.sh
+   ```
