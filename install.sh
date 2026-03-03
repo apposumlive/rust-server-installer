@@ -1,24 +1,26 @@
 #!/bin/bash
 # =====================================================
-# Rust Dedicated Server — One-Click Installer v2.4
+# Rust Dedicated Server — One-Click Installer v2.5
 # Автор: Александр (статья на Дзене)
+# GitHub: https://github.com/apposumlive/rust-server-installer
+# Установка: curl -fsSL https://raw.githubusercontent.com/apposumlive/rust-server-installer/main/install.sh | bash
 # =====================================================
 
 set -euo pipefail
 
 echo -e "\033[1;32m╔══════════════════════════════════════════════════════════════╗"
-echo -e "║     Rust Dedicated Server — Установка в 1 клик v2.4          ║"
+echo -e "║     Rust Dedicated Server — Установка в 1 клик v2.5          ║"
 echo -e "║                  Ubuntu 22.04 / 24.04                        ║"
 echo -e "╚══════════════════════════════════════════════════════════════╝\033[0m"
 
-# ===================== НАСТРОЙКИ =====================
+# ===================== ИНТЕРАКТИВНЫЕ НАСТРОЙКИ =====================
 read -rp "Название сервера [Мой Rust Сервер]: " SERVER_NAME
 SERVER_NAME=${SERVER_NAME:-"Мой Rust Сервер"}
 
 read -rp "RCON пароль (Enter = сгенерировать): " RCON_PASSWORD
 if [[ -z "$RCON_PASSWORD" ]]; then
     RCON_PASSWORD=$(openssl rand -hex 16)
-    echo -e "\033[1;33m✅ Сгенерирован RCON: $RCON_PASSWORD\033[0m (сохрани!)"
+    echo -e "\033[1;33m✅ Сгенерирован RCON-пароль: $RCON_PASSWORD\033[0m (сохрани его!)"
 fi
 
 read -rp "Seed карты (Enter = случайный): " SERVER_SEED
@@ -30,32 +32,34 @@ fi
 read -rp "Размер мира [4000]: " WORLD_SIZE
 WORLD_SIZE=${WORLD_SIZE:-4000}
 
-read -rp "Макс. игроков [100]: " MAX_PLAYERS
+read -rp "Максимум игроков [100]: " MAX_PLAYERS
 MAX_PLAYERS=${MAX_PLAYERS:-100}
 
 echo -e "\n\033[1;34mНачинаем установку...\033[0m"
 
 # ===================== ЗАВИСИМОСТИ =====================
+echo "→ Обновление системы и установка пакетов..."
 sudo apt update && sudo apt full-upgrade -y
 sudo dpkg --add-architecture i386
 sudo apt update
 sudo apt install -y steamcmd lib32gcc-s1 lib32stdc++6 curl wget htop jq net-tools cron ufw openssl screen
 
-# rcon-cli
+# ===================== rcon-cli (фиксированная версия) =====================
 echo "→ Установка rcon-cli..."
-RCLIVERSION=$(curl -s https://api.github.com/repos/gorcon/rcon-cli/releases/latest | jq -r .tag_name)
-wget -q "https://github.com/gorcon/rcon-cli/releases/download/${RCLIVERSION}/rcon-${RCLIVERSION}-amd64_linux.tar.gz" -O /tmp/rcon.tar.gz
+wget -q https://github.com/gorcon/rcon-cli/releases/download/v0.10.3/rcon-0.10.3-amd64_linux.tar.gz -O /tmp/rcon.tar.gz
 sudo tar -xzf /tmp/rcon.tar.gz -C /usr/local/bin --strip-components=1
 sudo chmod +x /usr/local/bin/rcon
 rm -f /tmp/rcon.tar.gz
+echo "✅ rcon-cli установлен!"
 
-# ===================== СЕРВЕР =====================
+# ===================== УСТАНОВКА СЕРВЕРА =====================
 mkdir -p ~/rustserver/{logs,scripts,backups}
 cd ~/rustserver
 
-echo "→ Скачивание Rust Dedicated Server..."
+echo "→ Скачивание Rust Dedicated Server (2–5 минут)..."
 steamcmd +login anonymous +force_install_dir ~/rustserver +app_update 258550 validate +quit
 
+# ===================== config.env =====================
 cat > config.env << EOF
 SERVER_NAME="$SERVER_NAME"
 RCON_PASSWORD="$RCON_PASSWORD"
@@ -68,6 +72,7 @@ SAVE_INTERVAL=300
 PUBLIC_IP=\$(curl -s ifconfig.me || echo "0.0.0.0")
 EOF
 
+# ===================== start.sh =====================
 cat > start.sh << 'EOL'
 #!/bin/bash
 set -euo pipefail
@@ -79,10 +84,13 @@ mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/$(date +%Y-%m-%d_%H-%M-%S).log"
 ln -sf "$(basename "$LOG_FILE")" "$LOG_DIR/latest.log"
 
+# Steam SDK fix
 mkdir -p ~/.steam/sdk64
 ln -sf ~/.steam/steamcmd/linux64/steamclient.so ~/.steam/sdk64/steamclient.so 2>/dev/null || true
 export LD_LIBRARY_PATH="$HOME/.steam/sdk64:${LD_LIBRARY_PATH:-}"
 export SteamAppId=252490
+
+echo "[$(date '+%H:%M:%S')] Запуск сервера: $SERVER_NAME" | tee -a "$LOG_FILE"
 
 exec "$BASE_DIR/RustDedicated" -batchmode -nographics -logFile "$LOG_FILE" \
     +server.ip 0.0.0.0 +server.port 28015 \
@@ -96,7 +104,7 @@ exec "$BASE_DIR/RustDedicated" -batchmode -nographics -logFile "$LOG_FILE" \
 EOL
 chmod +x start.sh
 
-# ===================== СКРИПТЫ =====================
+# ===================== СКРИПТЫ УПРАВЛЕНИЯ =====================
 mkdir -p scripts
 
 cat > scripts/update.sh << 'EOL'
@@ -110,14 +118,16 @@ EOL
 
 cat > scripts/wipe.sh << 'EOL'
 #!/bin/bash
-read -p "ВНИМАНИЕ! Полный вайп? (y/N): " confirm
+read -p "ВНИМАНИЕ! Полный вайп сервера? (y/N): " confirm
 if [[ $confirm =~ ^[Yy]$ ]]; then
     sudo systemctl stop rustserver
+    tar -czf ~/rustserver/backups/backup_$(date +%Y%m%d_%H%M).tar.gz server/main/ 2>/dev/null || true
     rm -rf server/main/*
     NEW_SEED=$((RANDOM * RANDOM % 2147483647))
     sed -i "s/SERVER_SEED=.*/SERVER_SEED=$NEW_SEED/" config.env
+    echo "Новый seed: $NEW_SEED"
     sudo systemctl start rustserver
-    echo "Вайп завершён! Новый seed: $NEW_SEED"
+    echo "Вайп завершён!"
 fi
 EOL
 
@@ -127,9 +137,17 @@ source ~/rustserver/config.env
 rcon -a 127.0.0.1:28016 -p "$RCON_PASSWORD" "$@"
 EOL
 
+cat > scripts/scheduled_restart.sh << 'EOL'
+#!/bin/bash
+source ~/rustserver/config.env
+rcon -a 127.0.0.1:28016 -p "$RCON_PASSWORD" "say 🔴 Перезагрузка сервера через 10 минут!"
+sleep 600
+sudo systemctl restart rustserver
+EOL
+
 chmod +x scripts/*.sh
 
-# ===================== SYSTEMD =====================
+# ===================== SYSTEMD + ФАЙРВОЛ =====================
 sudo tee /etc/systemd/system/rustserver.service > /dev/null << EOF
 [Unit]
 Description=Rust Dedicated Server
@@ -156,6 +174,7 @@ sudo ufw --force enable 2>/dev/null || true
 sudo systemctl daemon-reload
 sudo systemctl enable --now rustserver
 
+# ===================== ФИНАЛ =====================
 echo -e "\n\033[1;32m╔══════════════════════════════════════════════════════════════╗"
 echo -e "║               УСТАНОВКА ЗАВЕРШЕНА УСПЕШНО!                   ║"
 echo -e "╚══════════════════════════════════════════════════════════════╝\033[0m"
@@ -165,7 +184,7 @@ echo "Seed:     $SERVER_SEED"
 echo ""
 echo "Управление:"
 echo "  systemctl status rustserver"
-echo "  ~/rustserver/scripts/update.sh"
-echo "  ~/rustserver/scripts/wipe.sh"
+echo "  ~/rustserver/scripts/update.sh       # обновить"
+echo "  ~/rustserver/scripts/wipe.sh         # вайп"
 echo "  ~/rustserver/scripts/rcon.sh say Привет!"
-echo "  tail -f ~/rustserver/logs/latest.log"
+echo "  tail -f ~/rustserver/logs/latest.log # логи"
