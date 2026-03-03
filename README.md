@@ -23,4 +23,4 @@ One single command → answer 5 simple questions → fully working server with s
 ## 🚀 Installation (one line)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/apposumlive/rust-server-installer/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/apposumlive/rust-server-installer/main/install.sh -o install.sh && bash install.sh && rm install.sh
