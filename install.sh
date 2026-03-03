@@ -1,38 +1,35 @@
 #!/bin/bash
 # =====================================================
-# Rust Dedicated Server — One-Click Installer v2.5
-# Автор: Александр (статья на Дзене)
-# GitHub: https://github.com/apposumlive/rust-server-installer
-# Установка: curl -fsSL https://raw.githubusercontent.com/apposumlive/rust-server-installer/main/install.sh | bash
+# Rust Dedicated Server — Исправленный One-Click Installer
 # =====================================================
 
 set -euo pipefail
 
 echo -e "\033[1;32m╔══════════════════════════════════════════════════════════════╗"
-echo -e "║     Rust Dedicated Server — Установка в 1 клик v2.5          ║"
+echo -e "║     Rust Dedicated Server — Установка в 1 клик (FIXED)       ║"
 echo -e "║                  Ubuntu 22.04 / 24.04                        ║"
 echo -e "╚══════════════════════════════════════════════════════════════╝\033[0m"
 
 # ===================== ИНТЕРАКТИВНЫЕ НАСТРОЙКИ =====================
-read -rp "Название сервера [Мой Rust Сервер]: " SERVER_NAME
+read -rp "Название сервера [Мой Rust Сервер]: " SERVER_NAME < /dev/tty
 SERVER_NAME=${SERVER_NAME:-"Мой Rust Сервер"}
 
-read -rp "RCON пароль (Enter = сгенерировать): " RCON_PASSWORD
+read -rp "RCON пароль (Enter = сгенерировать): " RCON_PASSWORD < /dev/tty
 if [[ -z "$RCON_PASSWORD" ]]; then
     RCON_PASSWORD=$(openssl rand -hex 16)
     echo -e "\033[1;33m✅ Сгенерирован RCON-пароль: $RCON_PASSWORD\033[0m (сохрани его!)"
 fi
 
-read -rp "Seed карты (Enter = случайный): " SERVER_SEED
+read -rp "Seed карты (Enter = случайный): " SERVER_SEED < /dev/tty
 if [[ -z "$SERVER_SEED" ]]; then
     SERVER_SEED=$((RANDOM * RANDOM % 2147483647))
     echo -e "\033[1;33m✅ Сгенерирован seed: $SERVER_SEED\033[0m"
 fi
 
-read -rp "Размер мира [4000]: " WORLD_SIZE
+read -rp "Размер мира [4000]: " WORLD_SIZE < /dev/tty
 WORLD_SIZE=${WORLD_SIZE:-4000}
 
-read -rp "Максимум игроков [100]: " MAX_PLAYERS
+read -rp "Максимум игроков [100]: " MAX_PLAYERS < /dev/tty
 MAX_PLAYERS=${MAX_PLAYERS:-100}
 
 echo -e "\n\033[1;34mНачинаем установку...\033[0m"
@@ -44,9 +41,14 @@ sudo dpkg --add-architecture i386
 sudo apt update
 sudo apt install -y steamcmd lib32gcc-s1 lib32stdc++6 curl wget htop jq net-tools cron ufw openssl screen
 
-# ===================== rcon-cli (фиксированная версия) =====================
+# ===================== rcon-cli (исправленное скачивание) =====================
 echo "→ Установка rcon-cli..."
-wget -q https://github.com/gorcon/rcon-cli/releases/download/v0.10.3/rcon-0.10.3-amd64_linux.tar.gz -O /tmp/rcon.tar.gz
+# Пробуем скачать напрямую, если не выйдет (таймаут 10 сек) - качаем через зеркало
+if ! wget --timeout=10 --tries=2 https://github.com/gorcon/rcon-cli/releases/download/v0.10.3/rcon-0.10.3-amd64_linux.tar.gz -O /tmp/rcon.tar.gz; then
+    echo -e "\033[1;33m⚠️ Ошибка прямого скачивания. Пробуем через зеркало ghproxy...\033[0m"
+    wget --timeout=15 --tries=3 https://ghproxy.net/https://github.com/gorcon/rcon-cli/releases/download/v0.10.3/rcon-0.10.3-amd64_linux.tar.gz -O /tmp/rcon.tar.gz
+fi
+
 sudo tar -xzf /tmp/rcon.tar.gz -C /usr/local/bin --strip-components=1
 sudo chmod +x /usr/local/bin/rcon
 rm -f /tmp/rcon.tar.gz
@@ -118,7 +120,7 @@ EOL
 
 cat > scripts/wipe.sh << 'EOL'
 #!/bin/bash
-read -p "ВНИМАНИЕ! Полный вайп сервера? (y/N): " confirm
+read -p "ВНИМАНИЕ! Полный вайп сервера? (y/N): " confirm < /dev/tty
 if [[ $confirm =~ ^[Yy]$ ]]; then
     sudo systemctl stop rustserver
     tar -czf ~/rustserver/backups/backup_$(date +%Y%m%d_%H%M).tar.gz server/main/ 2>/dev/null || true
