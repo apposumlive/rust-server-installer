@@ -157,8 +157,8 @@ After=network.target
 
 [Service]
 User=$(whoami)
-WorkingDirectory=/home/$(whoami)/rustserver
-ExecStart=/home/$(whoami)/rustserver/start.sh
+WorkingDirectory=$HOME/rustserver
+ExecStart=$HOME/rustserver/start.sh
 Restart=always
 RestartSec=5
 LimitNOFILE=1048576
