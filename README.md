@@ -24,7 +24,7 @@
 Выполните в терминале сервера следующую команду:
 
 ```bash
-curl -fsSL [https://raw.githubusercontent.com/apposumlive/rust-server-installer/main/install.sh](https://raw.githubusercontent.com/apposumlive/rust-server-installer/main/install.sh) -o install.sh && bash install.sh && rm install.sh
+curl -fsSL "[https://raw.githubusercontent.com/apposumlive/rust-server-installer/main/install.sh](https://raw.githubusercontent.com/apposumlive/rust-server-installer/main/install.sh)" -o install.sh && bash install.sh && rm install.sh
 ```
 
 > ⚠️ **Примечание:** Загрузка файлов через SteamCMD занимает от 2 до 5 минут в зависимости от пропускной способности сети. Не прерывайте процесс сочетанием `Ctrl+C`. Скрипт выведет уведомление об успешном завершении установки.
